@@ -259,37 +259,40 @@ def authorize():
         include_granted_scopes='true',
         prompt='consent'
     )
-    session['oauth_state'] = state
-    session.modified = True
+    # Save state to file instead of session
+    with open('oauth_state.txt', 'w') as f:
+        f.write(state)
     return redirect(auth_url)
 
-# ----------------------------------------
-# Gmail OAuth2 - Step 2: Google redirects back
-# ----------------------------------------
 
 @app.route("/oauth2callback")
 def oauth2callback():
     try:
-        state = session.get('oauth_state', '')
+        # Read state from file
+        state = ''
+        if os.path.exists('oauth_state.txt'):
+            with open('oauth_state.txt', 'r') as f:
+                state = f.read().strip()
+
         flow = Flow.from_client_secrets_file(
             CREDENTIALS_FILE,
             scopes=SCOPES,
             state=state,
             redirect_uri=request.host_url.rstrip('/') + '/oauth2callback'
         )
-        flow.fetch_token(
-            authorization_response=request.url,
-            code_verifier=None
-        )
+        flow.fetch_token(authorization_response=request.url)
         creds = flow.credentials
 
         with open(TOKEN_FILE, 'w') as f:
             f.write(creds.to_json())
 
+        # Cleanup state file
+        if os.path.exists('oauth_state.txt'):
+            os.remove('oauth_state.txt')
+
         return redirect('/')
     except Exception as e:
         return f"OAuth Error: {str(e)}", 400
-
 # ----------------------------------------
 # Check if Gmail is authorized
 # ----------------------------------------
