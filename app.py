@@ -4,6 +4,7 @@ import os
 import threading
 import time
 import base64
+import json
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -20,18 +21,24 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "nhai-email-portal-secret-2024")
 
 # ------------------------------------
-# If running on Render (HTTPS), remove
-# the insecure transport override.
-# Only needed for local HTTP testing.
+# Load credentials.json from env var
+# (for Render deployment)
+# ------------------------------------
+creds_data = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+if creds_data:
+    with open("credentials.json", "w") as f:
+        f.write(creds_data)
+
+# ------------------------------------
+# Only allow insecure transport locally
 # ------------------------------------
 if os.environ.get("RENDER") != "true":
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-CREDENTIALS_FILE = 'credentials.json'   # Downloaded from Google Cloud Console
-TOKEN_FILE = 'token.json'               # Auto-generated after first login
+CREDENTIALS_FILE = 'credentials.json'
+TOKEN_FILE = 'token.json'
 
-UPLOAD_FOLDER = "uploads"
 RECIPIENT_FOLDER = "uploads/recipients"
 ATTACHMENT_FOLDER = "uploads/attachments"
 LOG_FOLDER = "logs"
@@ -50,7 +57,7 @@ campaign_status = {
 
 
 # ----------------------------------------
-# STEP 1: Replace {{placeholders}} in text
+# Replace {{placeholders}} in text
 # ----------------------------------------
 
 def personalize_text(text, row):
@@ -63,7 +70,7 @@ def personalize_text(text, row):
 
 
 # ----------------------------------------
-# STEP 2: Send a single email via Gmail API
+# Send a single email via Gmail API
 # ----------------------------------------
 
 def send_email(service, sender_email, receiver_email, subject, body, attachment_paths):
@@ -92,7 +99,7 @@ def send_email(service, sender_email, receiver_email, subject, body, attachment_
 
 
 # ----------------------------------------
-# STEP 3: Bulk sender (runs in background)
+# Bulk sender (runs in background thread)
 # ----------------------------------------
 
 def send_campaign(recipient_path, sender_email, subject_template, body_template, attachment_paths):
@@ -190,7 +197,6 @@ def send_campaign(recipient_path, sender_email, subject_template, body_template,
                 "error": ""
             })
 
-            # Small delay to avoid Gmail rate limits
             time.sleep(0.5)
 
         except Exception as e:
@@ -292,7 +298,6 @@ def auth_status():
     try:
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
         if creds and creds.valid:
-            # Get the sender email from token
             service = build('gmail', 'v1', credentials=creds)
             profile = service.users().getProfile(userId='me').execute()
             return jsonify({"authorized": True, "email": profile.get("emailAddress", "")})
@@ -392,7 +397,6 @@ def send():
     if campaign_status["running"]:
         return jsonify({"status": "error", "message": "A campaign is already running"})
 
-    # Check Gmail is authorized
     if not os.path.exists(TOKEN_FILE):
         return jsonify({"status": "error", "message": "Gmail not connected. Please authorize first."})
 
