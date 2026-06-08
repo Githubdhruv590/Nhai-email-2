@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHAI Email Automation Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+
+<div class="container-fluid py-4">
+
+    <!-- HEADER -->
+    <div class="header-card mb-4">
+        <div class="d-flex align-items-center">
+            <img src="{{ url_for('static', filename='nhai_logo.png') }}" alt="NHAI Logo" height="70" class="me-3">
+            <div>
+                <h2 class="mb-1">NHAI Email Automation Portal</h2>
+                <p class="mb-0">National Highways Authority of India</p>
+                <small class="text-muted">Email Communication Management System</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- LEFT COLUMN: Email Composer -->
+        <div class="col-lg-8">
+            <div class="custom-card">
+                <h4>Email Composer</h4>
+
+                <div class="mb-3">
+                    <label class="form-label">Subject</label>
+                    <input type="text" id="subject" class="form-control" placeholder="e.g. Welcome {{Name}}">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Email Body</label>
+                    <div id="editor" style="min-height: 250px;"></div>
+                </div>
+
+                <div>
+                    <label class="form-label">Attachments</label>
+                    <input type="file" id="attachments" class="form-control" multiple>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Settings -->
+        <div class="col-lg-4">
+            <div class="custom-card">
+                <h4>Sender Settings</h4>
+
+                <!-- Gmail Auth -->
+                <div class="mb-3">
+                    <label class="form-label">Gmail Account</label>
+                    <div id="gmailAuthBox" class="p-3 rounded mb-2" style="background: #1a1a2e; border: 1px solid #333;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <div id="authStatusText" class="fw-bold">Checking...</div>
+                                <div id="authEmailText" class="small text-muted mt-1"></div>
+                            </div>
+                            <div id="authStatusIcon" class="fs-4"></div>
+                        </div>
+                    </div>
+                    <button class="btn btn-outline-warning w-100" id="authorizeBtn">
+                        🔗 Connect Gmail Account
+                    </button>
+                </div>
+
+                <hr style="border-color: #333;">
+
+                <!-- Recipient File -->
+                <div class="mb-3">
+                    <label class="form-label">Recipient Excel</label>
+                    <input type="file" id="recipientFile" class="form-control" accept=".xlsx,.xls">
+                </div>
+
+                <!-- Recipient Info -->
+                <div id="recipientInfo" class="d-none">
+                    <div class="success-box">
+                        <h6>Recipients Loaded</h6>
+                        <div id="recipientCount" class="fw-bold fs-5">0 Recipients</div>
+                        <hr>
+                        <div id="uploadedFileName" class="small text-muted"></div>
+                    </div>
+                </div>
+
+                <!-- Available Variables -->
+                <div id="variablesSection" class="mt-3 d-none">
+                    <h6>Available Variables</h6>
+                    <div id="variablesList"></div>
+                </div>
+
+                <!-- Campaign Status -->
+                <div id="statusSection" class="mt-4 d-none">
+                    <h6>Campaign Status</h6>
+                    <div class="status-dashboard p-3 rounded">
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-primary" id="campaignStatusText">Running</span>
+                            <span class="text-white-50 small" id="progressPercentage">0%</span>
+                        </div>
+
+                        <div class="progress mb-3 bg-dark" style="height: 10px; border-radius: 6px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                                 id="campaignProgressBar" style="width: 0%;"></div>
+                        </div>
+
+                        <div class="row g-2 text-center mb-3">
+                            <div class="col-4">
+                                <div class="stat-card py-2 rounded">
+                                    <div class="stat-label">Total</div>
+                                    <div class="stat-value" id="statTotal">0</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-card py-2 rounded">
+                                    <div class="stat-label text-success">Sent</div>
+                                    <div class="stat-value text-success" id="statSent">0</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat-card py-2 rounded">
+                                    <div class="stat-label text-danger">Failed</div>
+                                    <div class="stat-value text-danger" id="statFailed">0</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h6 class="text-white-50 small mb-2">Delivery Log</h6>
+                        <div class="log-terminal" id="campaignLogs">
+                            <div class="log-entry log-info">> Ready to send emails.</div>
+                        </div>
+
+                        <!-- Copy Failed Emails Button -->
+                        <div id="copyFailedSection" class="mt-3 d-none">
+                            <button class="btn btn-sm btn-outline-danger w-100" id="copyFailedBtn">
+                                📋 Copy Failed Emails
+                            </button>
+                            <div id="copyFeedback" class="text-success small mt-1 text-center d-none">
+                                ✓ Copied to clipboard!
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ACTION BUTTONS -->
+    <div class="text-center mt-4">
+        <button class="btn btn-outline-light btn-lg me-3" id="previewBtn">Preview</button>
+        <button class="btn btn-primary btn-lg" id="sendBtn">Send Emails</button>
+    </div>
+
+</div>
+
+
+<!-- PREVIEW MODAL -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header">
+                <h5 class="modal-title">Email Preview (First Recipient)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewContent"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+</body>
+</html>

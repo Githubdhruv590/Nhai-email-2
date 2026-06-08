@@ -1,0 +1,178 @@
+body {
+    background: #f4f7fb;
+    color: #212529;
+    font-family: "Segoe UI", sans-serif;
+}
+
+.header-card {
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 10px;
+    border-left: 5px solid #0d6efd;
+    border: 1px solid #dce3ea;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.header-card h2 {
+    color: #003366;
+    font-weight: 700;
+}
+
+.header-card p {
+    color: #6c757d;
+}
+
+.custom-card {
+    background: #ffffff;
+    border: 1px solid #dce3ea;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.custom-card h4 {
+    color: #003366;
+    font-weight: 600;
+}
+
+.form-control,
+.form-select {
+    background: white;
+    border: 1px solid #ced4da;
+    color: #212529;
+    border-radius: 6px;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.15rem rgba(13,110,253,.15);
+}
+
+.variable-chip {
+    display: inline-block;
+    margin: 4px;
+    padding: 6px 12px;
+    background: #e8f1ff;
+    color: #0d6efd;
+    border: 1px solid #0d6efd;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.variable-chip:hover {
+    background: #0d6efd;
+    color: white;
+}
+
+.btn-primary {
+    background: #0d6efd;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 10px 20px;
+}
+
+.btn-primary:hover {
+    background: #0b5ed7;
+}
+
+.success-box {
+    background: #e8f8ef;
+    border: 1px solid #198754;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+#recipientCount {
+    color: #198754;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.modal-content {
+    border-radius: 10px;
+}
+
+.status-dashboard {
+    background: #ffffff;
+    border: 1px solid #dce3ea;
+    border-radius: 10px;
+}
+
+.stat-card {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.stat-value {
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.log-terminal {
+    background: #ffffff;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    padding: 12px;
+    height: 180px;
+    overflow-y: auto;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+}
+
+.log-info {
+    color: #0d6efd;
+}
+
+.log-sent {
+    color: #198754;
+}
+
+.log-failed {
+    color: #dc3545;
+}
+
+/* Quill Editor */
+
+.ql-toolbar {
+    background: #f8f9fa;
+    border: 1px solid #ced4da !important;
+}
+
+.ql-container {
+    background: white;
+    color: #212529;
+    border: 1px solid #ced4da !important;
+    min-height: 350px;
+}
+
+.ql-editor {
+    min-height: 320px;
+    color: #212529;
+}
+
+.ql-editor.ql-blank::before {
+    color: #6c757d;
+}
+
+.ql-toolbar .ql-stroke {
+    stroke: #212529 !important;
+}
+
+.ql-toolbar .ql-fill {
+    fill: #212529 !important;
+}
+
+.ql-picker {
+    color: #212529 !important;
+}
