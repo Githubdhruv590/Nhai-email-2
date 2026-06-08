@@ -19,7 +19,8 @@ from google.auth.transport.requests import Request
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "nhai-email-portal-secret-2024")
-
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # ------------------------------------
 # Load credentials.json from env var
 # (for Render deployment)
@@ -258,9 +259,9 @@ def authorize():
         include_granted_scopes='true',
         prompt='consent'
     )
-    session['state'] = state
+    session['oauth_state'] = state
+    session.modified = True
     return redirect(auth_url)
-
 
 # ----------------------------------------
 # Gmail OAuth2 - Step 2: Google redirects back
@@ -269,13 +270,17 @@ def authorize():
 @app.route("/oauth2callback")
 def oauth2callback():
     try:
+        state = session.get('oauth_state', '')
         flow = Flow.from_client_secrets_file(
             CREDENTIALS_FILE,
             scopes=SCOPES,
-            state=session.get('state'),
+            state=state,
             redirect_uri=request.host_url.rstrip('/') + '/oauth2callback'
         )
-        flow.fetch_token(authorization_response=request.url)
+        flow.fetch_token(
+            authorization_response=request.url,
+            code_verifier=None
+        )
         creds = flow.credentials
 
         with open(TOKEN_FILE, 'w') as f:
@@ -284,7 +289,6 @@ def oauth2callback():
         return redirect('/')
     except Exception as e:
         return f"OAuth Error: {str(e)}", 400
-
 
 # ----------------------------------------
 # Check if Gmail is authorized
