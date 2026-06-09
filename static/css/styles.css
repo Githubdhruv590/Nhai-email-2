@@ -176,3 +176,15 @@ body {
 .ql-picker {
     color: #212529 !important;
 }
+.variable-badge {
+    color: #1a5276 !important;
+    border-color: #1a5276 !important;
+    background-color: #d6eaf8 !important;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.variable-badge:hover {
+    background-color: #1a5276 !important;
+    color: white !important;
+}
