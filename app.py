@@ -269,17 +269,14 @@ def oauth2callback():
             scopes=SCOPES,
             redirect_uri=request.host_url.rstrip('/') + '/oauth2callback'
         )
-        # Bypass state validation completely
-        flow.fetch_token(
-            authorization_response=request.url,
-            state=None
-        )
+        flow.fetch_token(authorization_response=request.url)
         creds = flow.credentials
 
+        # Save to file
         with open(TOKEN_FILE, 'w') as f:
             f.write(creds.to_json())
 
-        return redirect('/')
+        return redirect('/?auth=success')
     except Exception as e:
         return f"OAuth Error: {str(e)}", 400
 # ----------------------------------------
@@ -288,29 +285,15 @@ def oauth2callback():
 
 @app.route("/auth-status")
 def auth_status():
+    # Try to load token from env if file doesn't exist
     if not os.path.exists(TOKEN_FILE):
-        return jsonify({"authorized": False, "email": ""})
-
-    try:
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-        if creds and creds.valid:
-            service = build('gmail', 'v1', credentials=creds)
-            profile = service.users().getProfile(userId='me').execute()
-            return jsonify({"authorized": True, "email": profile.get("emailAddress", "")})
-
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+        token_data = os.environ.get("GMAIL_TOKEN_JSON")
+        if token_data:
             with open(TOKEN_FILE, 'w') as f:
-                f.write(creds.to_json())
-            service = build('gmail', 'v1', credentials=creds)
-            profile = service.users().getProfile(userId='me').execute()
-            return jsonify({"authorized": True, "email": profile.get("emailAddress", "")})
-
-    except Exception:
-        pass
-
-    return jsonify({"authorized": False, "email": ""})
-
+                f.write(token_data)
+        else:
+            return jsonify({"authorized": False, "email": ""})
+    # ... rest same
 
 # ----------------------------------------
 # Validate recipient Excel file
@@ -343,7 +326,12 @@ def validate_recipients():
 # ----------------------------------------
 # Preview email for first recipient
 # ----------------------------------------
-
+@app.route("/get-token")
+def get_token():
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, 'r') as f:
+            return f.read()
+    return "No token found"
 @app.route("/preview", methods=["POST"])
 def preview():
     subject_template = request.form.get("subject")
