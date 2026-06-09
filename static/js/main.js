@@ -280,6 +280,11 @@ function updateStatusUI(data) {
     document.getElementById('statSent').textContent = sent;
     document.getElementById('statFailed').textContent = failed;
 
+// Make stats clickable
+    document.getElementById('statTotal').onclick = () => showEmailList('all', data.logs);
+    document.getElementById('statSent').onclick = () => showEmailList('sent', data.logs);
+    document.getElementById('statFailed').onclick = () => showEmailList('failed', data.logs);
+
     // Progress bar
     const progress = total > 0 ? Math.round(((sent + failed) / total) * 100) : 0;
     document.getElementById('campaignProgressBar').style.width = progress + '%';
@@ -361,3 +366,45 @@ document.getElementById('copyFailedBtn').addEventListener('click', function () {
         setTimeout(() => fb.classList.add('d-none'), 2500);
     });
 });
+function showEmailList(type, logs) {
+    if (!logs || logs.length === 0) return;
+
+    let filtered = logs.filter(l => l.recipient !== 'System');
+    if (type === 'sent') filtered = filtered.filter(l => l.status === 'sent');
+    if (type === 'failed') filtered = filtered.filter(l => l.status === 'failed');
+
+    if (filtered.length === 0) {
+        alert('No emails in this category.');
+        return;
+    }
+
+    const title = type === 'all' ? 'All Recipients' :
+                  type === 'sent' ? 'Sent Emails' : 'Failed Emails';
+
+    const emailList = filtered.map(l => {
+        const icon = l.status === 'sent' ? '✓' : '✗';
+        const error = l.error ? ` — ${l.error}` : '';
+        return `<div class="py-1 border-bottom" style="font-size:13px;">
+            <span class="${l.status === 'sent' ? 'text-success' : 'text-danger'}">${icon}</span>
+            <span class="ms-2">${l.recipient}</span>
+            ${error ? `<span class="text-muted">${error}</span>` : ''}
+        </div>`;
+    }).join('');
+
+    const copyBtn = type !== 'all' ? `
+        <button class="btn btn-sm btn-outline-secondary" onclick="
+            navigator.clipboard.writeText('${filtered.map(l => l.recipient).join('\\n')}');
+            this.textContent='Copied!';
+            setTimeout(()=>this.textContent='Copy Emails',1500);
+        ">Copy Emails</button>` : '';
+
+    document.getElementById('previewContent').innerHTML = `
+        <h6 class="mb-3">${title} (${filtered.length})</h6>
+        ${copyBtn}
+        <div class="mt-3" style="max-height:400px; overflow-y:auto;">
+            ${emailList}
+        </div>
+    `;
+
+    new bootstrap.Modal(document.getElementById('previewModal')).show();
+}
