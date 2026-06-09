@@ -36,7 +36,10 @@ if creds_data:
 if os.environ.get("RENDER") != "true":
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+SCOPES = [
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/gmail.readonly'
+]
 CREDENTIALS_FILE = 'credentials.json'
 TOKEN_FILE = 'token.json'
 
