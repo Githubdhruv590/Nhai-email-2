@@ -288,7 +288,6 @@ def oauth2callback():
 
 @app.route("/auth-status")
 def auth_status():
-    # Try to load token from env if file doesn't exist
     if not os.path.exists(TOKEN_FILE):
         token_data = os.environ.get("GMAIL_TOKEN_JSON")
         if token_data:
@@ -296,7 +295,22 @@ def auth_status():
                 f.write(token_data)
         else:
             return jsonify({"authorized": False, "email": ""})
-    # ... rest same
+
+    try:
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        if creds and creds.valid:
+            return jsonify({"authorized": True, "email": ""})
+
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            with open(TOKEN_FILE, 'w') as f:
+                f.write(creds.to_json())
+            return jsonify({"authorized": True, "email": ""})
+
+    except Exception:
+        pass
+
+    return jsonify({"authorized": False, "email": ""})
 
 # ----------------------------------------
 # Validate recipient Excel file
