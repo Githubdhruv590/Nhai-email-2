@@ -10,7 +10,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from flask_session import Session
+
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
@@ -19,16 +19,11 @@ from google.auth.transport.requests import Request
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "nhai-email-portal-secret-2024")
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SESSION_FILE_DIR'] = '/tmp/flask_sessions'
-app.config['SESSION_PERMANENT'] = False
-app.config['SESSION_USE_SIGNER'] = True
-Session(app)
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 # ------------------------------------
 # Load credentials.json from env var
-# (for Render deployment)
 # ------------------------------------
 creds_data = os.environ.get("GOOGLE_CREDENTIALS_JSON")
 if creds_data:
@@ -46,7 +41,6 @@ SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly'
 ]
 CREDENTIALS_FILE = 'credentials.json'
-TOKEN_FILE = 'token.json'
 
 RECIPIENT_FOLDER = "uploads/recipients"
 ATTACHMENT_FOLDER = "uploads/attachments"
@@ -63,6 +57,9 @@ campaign_status = {
     "failed": 0,
     "logs": []
 }
+
+# In-memory token store per user (keyed by session id)
+token_store = {}
 
 
 # ----------------------------------------
@@ -158,8 +155,6 @@ def send_campaign(recipient_path, sender_email, gmail_token, subject_template, b
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
         service = build('gmail', 'v1', credentials=creds)
-
-        
         print("Gmail API initialized successfully")
 
         log_filename = f"campaign_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -270,6 +265,10 @@ def authorize():
     return redirect(auth_url)
 
 
+# ----------------------------------------
+# Gmail OAuth2 - Step 2: Google redirects back
+# ----------------------------------------
+
 @app.route("/oauth2callback")
 def oauth2callback():
     try:
@@ -281,40 +280,44 @@ def oauth2callback():
         flow.fetch_token(authorization_response=request.url)
         creds = flow.credentials
 
-        # Store in session instead of file
-        session['gmail_token'] = creds.to_json()
+        # Generate unique user id and store token in memory
+        user_id = os.urandom(16).hex()
+        session['user_id'] = user_id
         session.modified = True
+        token_store[user_id] = creds.to_json()
 
         return redirect('/')
     except Exception as e:
         return f"OAuth Error: {str(e)}", 400
+
+
 # ----------------------------------------
 # Check if Gmail is authorized
 # ----------------------------------------
 
 @app.route("/auth-status")
 def auth_status():
-    token_data = session.get('gmail_token')
-    if not token_data:
+    user_id = session.get('user_id')
+    if not user_id or user_id not in token_store:
         return jsonify({"authorized": False, "email": ""})
 
     try:
         creds = Credentials.from_authorized_user_info(
-            json.loads(token_data), SCOPES
+            json.loads(token_store[user_id]), SCOPES
         )
         if creds and creds.valid:
             return jsonify({"authorized": True, "email": ""})
 
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            session['gmail_token'] = creds.to_json()
-            session.modified = True
+            token_store[user_id] = creds.to_json()
             return jsonify({"authorized": True, "email": ""})
 
     except Exception:
         pass
 
     return jsonify({"authorized": False, "email": ""})
+
 
 # ----------------------------------------
 # Validate recipient Excel file
@@ -347,12 +350,7 @@ def validate_recipients():
 # ----------------------------------------
 # Preview email for first recipient
 # ----------------------------------------
-@app.route("/get-token")
-def get_token():
-    if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, 'r') as f:
-            return f.read()
-    return "No token found"
+
 @app.route("/preview", methods=["POST"])
 def preview():
     subject_template = request.form.get("subject")
@@ -402,29 +400,30 @@ def send():
     if campaign_status["running"]:
         return jsonify({"status": "error", "message": "A campaign is already running"})
 
-    
-
     subject = request.form.get("subject")
     body = request.form.get("body")
 
-    # Get sender email from token
-    try:
-        token_data = session.get('gmail_token')
-        if not token_data:
-            return jsonify({"status": "error", "message": "Gmail not connected. Please authorize first."})
+    # Get token from memory store
+    user_id = session.get('user_id')
+    if not user_id or user_id not in token_store:
+        return jsonify({"status": "error", "message": "Gmail not connected. Please authorize first."})
 
-        creds = Credentials.from_authorized_user_info(
-        json.loads(token_data), SCOPES
-        )
+    token_data = token_store[user_id]
+
+    # Get sender email
+    try:
+        creds = Credentials.from_authorized_user_info(json.loads(token_data), SCOPES)
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            session['gmail_token'] = creds.to_json()
+            token_store[user_id] = creds.to_json()
+            token_data = token_store[user_id]
 
         service = build('gmail', 'v1', credentials=creds)
         profile = service.users().getProfile(userId='me').execute()
         sender_email = profile.get("emailAddress", "me")
     except Exception as e:
         return jsonify({"status": "error", "message": f"Gmail auth error: {str(e)}"})
+
     # Save recipient file
     recipient_file = request.files.get("recipient_file")
     if not recipient_file or recipient_file.filename == "":
@@ -459,11 +458,9 @@ def send():
     }
 
     # Start background thread
-
-    gmail_token = session.get('gmail_token')
     thread = threading.Thread(
         target=send_campaign,
-        args=(recipient_path, sender_email, gmail_token, subject, body, attachment_paths)
+        args=(recipient_path, sender_email, token_data, subject, body, attachment_paths)
     )
     thread.daemon = True
     thread.start()

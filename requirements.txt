@@ -3,7 +3,6 @@ pandas
 openpyxl
 gunicorn
 google-auth
+google-auth-oauthlib==0.8.0
 google-auth-httplib2
 google-api-python-client
-google-auth-oauthlib==0.8.0
-flask-session
