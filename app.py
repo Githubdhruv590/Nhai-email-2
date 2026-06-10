@@ -106,7 +106,7 @@ def send_email(service, sender_email, receiver_email, subject, body, attachment_
 # Bulk sender (runs in background thread)
 # ----------------------------------------
 
-def send_campaign(recipient_path, sender_email, subject_template, body_template, attachment_paths):
+def send_campaign(recipient_path, sender_email, gmail_token, subject_template, body_template, attachment_paths):
     global campaign_status
 
     # Load recipients
@@ -147,13 +147,14 @@ def send_campaign(recipient_path, sender_email, subject_template, body_template,
 
     # Initialize Gmail API
     try:
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        creds = Credentials.from_authorized_user_info(
+            json.loads(gmail_token), SCOPES
+        )
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            with open(TOKEN_FILE, 'w') as f:
-                f.write(creds.to_json())
-
         service = build('gmail', 'v1', credentials=creds)
+
+        
         print("Gmail API initialized successfully")
 
         log_filename = f"campaign_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
@@ -275,11 +276,11 @@ def oauth2callback():
         flow.fetch_token(authorization_response=request.url)
         creds = flow.credentials
 
-        # Save to file
-        with open(TOKEN_FILE, 'w') as f:
-            f.write(creds.to_json())
+        # Store in session instead of file
+        session['gmail_token'] = creds.to_json()
+        session.modified = True
 
-        return redirect('/?auth=success')
+        return redirect('/')
     except Exception as e:
         return f"OAuth Error: {str(e)}", 400
 # ----------------------------------------
@@ -288,23 +289,21 @@ def oauth2callback():
 
 @app.route("/auth-status")
 def auth_status():
-    if not os.path.exists(TOKEN_FILE):
-        token_data = os.environ.get("GMAIL_TOKEN_JSON")
-        if token_data:
-            with open(TOKEN_FILE, 'w') as f:
-                f.write(token_data)
-        else:
-            return jsonify({"authorized": False, "email": ""})
+    token_data = session.get('gmail_token')
+    if not token_data:
+        return jsonify({"authorized": False, "email": ""})
 
     try:
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        creds = Credentials.from_authorized_user_info(
+            json.loads(token_data), SCOPES
+        )
         if creds and creds.valid:
             return jsonify({"authorized": True, "email": ""})
 
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            with open(TOKEN_FILE, 'w') as f:
-                f.write(creds.to_json())
+            session['gmail_token'] = creds.to_json()
+            session.modified = True
             return jsonify({"authorized": True, "email": ""})
 
     except Exception:
@@ -406,15 +405,22 @@ def send():
 
     # Get sender email from token
     try:
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        token_data = session.get('gmail_token')
+        if not token_data:
+            return jsonify({"status": "error", "message": "Gmail not connected. Please authorize first."})
+
+        creds = Credentials.from_authorized_user_info(
+        json.loads(token_data), SCOPES
+        )
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
+            session['gmail_token'] = creds.to_json()
+
         service = build('gmail', 'v1', credentials=creds)
         profile = service.users().getProfile(userId='me').execute()
         sender_email = profile.get("emailAddress", "me")
     except Exception as e:
         return jsonify({"status": "error", "message": f"Gmail auth error: {str(e)}"})
-
     # Save recipient file
     recipient_file = request.files.get("recipient_file")
     if not recipient_file or recipient_file.filename == "":
@@ -449,9 +455,11 @@ def send():
     }
 
     # Start background thread
+
+    gmail_token = session.get('gmail_token')
     thread = threading.Thread(
         target=send_campaign,
-        args=(recipient_path, sender_email, subject, body, attachment_paths)
+        args=(recipient_path, sender_email, gmail_token, subject, body, attachment_paths)
     )
     thread.daemon = True
     thread.start()
