@@ -402,8 +402,7 @@ def send():
     if campaign_status["running"]:
         return jsonify({"status": "error", "message": "A campaign is already running"})
 
-    if not os.path.exists(TOKEN_FILE):
-        return jsonify({"status": "error", "message": "Gmail not connected. Please authorize first."})
+    
 
     subject = request.form.get("subject")
     body = request.form.get("body")
