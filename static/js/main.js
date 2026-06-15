@@ -173,7 +173,7 @@ document.getElementById('previewBtn').addEventListener('click', function () {
                         <strong> ${data.subject}</strong>
                     </div>
                     <hr style="border-color:#444">
-                    <div style="background:#111; padding:16px; border-radius:8px; line-height:1.6;">
+                    <div style="background:#ffffff; padding:16px; border-radius:8px; line-height:1.6;">
                         ${data.body}
                     </div>
                 `;
