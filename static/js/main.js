@@ -108,14 +108,17 @@ document.getElementById('recipientFile').addEventListener('change', function () 
                             if (selection) {
         // Cursor body mein hai - wahan insert karo
                                 quill.insertText(selection.index, variable);
+                                quill.focus();
                                 quill.setSelection(selection.index + variable.length);
                             } else {
         // Cursor body mein nahi hai - end mein insert karo
                                 const length = quill.getLength();
                                 quill.insertText(length - 1, variable);
+                                quill.focus();
+                                quill.setSelection(length - 1 + variable.length);
                             }
     // Focus back to editor
-                            quill.focus();
+                            
 });
                         varList.appendChild(badge);
                     });
