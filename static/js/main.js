@@ -103,10 +103,20 @@ document.getElementById('recipientFile').addEventListener('change', function () 
                         badge.textContent = `{{${col}}}`;
                         badge.title = 'Click to copy';
                         badge.addEventListener('click', function () {
-                            navigator.clipboard.writeText(`{{${col}}}`);
-                            badge.textContent = 'Copied!';
-                            setTimeout(() => { badge.textContent = `{{${col}}}`; }, 1000);
-                        });
+                            const variable = `{{${col}}}`;
+                            const selection = quill.getSelection();
+                            if (selection) {
+        // Cursor body mein hai - wahan insert karo
+                                quill.insertText(selection.index, variable);
+                                quill.setSelection(selection.index + variable.length);
+                            } else {
+        // Cursor body mein nahi hai - end mein insert karo
+                                const length = quill.getLength();
+                                quill.insertText(length - 1, variable);
+                            }
+    // Focus back to editor
+                            quill.focus();
+});
                         varList.appendChild(badge);
                     });
                 }
